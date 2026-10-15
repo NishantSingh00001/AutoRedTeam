@@ -1,0 +1,307 @@
+<title>AutoRedTeam</title>
+<meta name="description" content="Pressure-test your AI. Attacks strike the guardrail in real time — watch it hold, or break.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{
+  --ink:#06080c; --fg:#f2f4f8; --muted:#8a93a3; --dim:#565e6c;
+  --red:#ff3b30; --cyan:#30e0ff; --line:rgba(242,244,248,.1);
+  --disp:"Bricolage Grotesque",system-ui,sans-serif; --mono:"IBM Plex Mono",monospace; --sans:"Inter",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--ink);color:var(--fg);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.mono{font-family:var(--mono)}
+
+#scene{position:fixed;inset:0;z-index:0;display:block}
+.vig{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(120% 90% at 60% 45%,transparent 40%,rgba(6,8,12,.5) 80%,rgba(6,8,12,.9) 100%)}
+.content{position:relative;z-index:3}
+
+/* custom targeting cursor */
+html.cc, html.cc *{cursor:none!important}
+.reticle{position:fixed;left:0;top:0;z-index:300;pointer-events:none;width:30px;height:30px;transform:translate(-100px,-100px);opacity:0;transition:opacity .25s;will-change:transform}
+.reticle.show{opacity:1}
+.reticle svg{display:block;width:30px;height:30px;transition:transform .18s ease}
+.reticle .ring,.reticle line{stroke:var(--cyan);transition:stroke .18s}
+.reticle.hot svg{transform:scale(1.5) rotate(45deg)}
+.reticle.hot .ring,.reticle.hot line{stroke:var(--red)}
+.cdot{position:fixed;left:0;top:0;z-index:301;pointer-events:none;width:4px;height:4px;border-radius:50%;background:var(--cyan);transform:translate(-100px,-100px);opacity:0;transition:opacity .25s,background .18s}
+.cdot.show{opacity:1}.cdot.hot{background:var(--red)}
+@media(pointer:coarse){.reticle,.cdot{display:none}}
+
+nav{position:absolute;top:0;left:0;right:0;z-index:10}
+.nav-in{display:flex;align-items:center;justify-content:space-between;height:76px;max-width:1340px;margin:0 auto;padding-inline:clamp(20px,5vw,56px)}
+.wm{font-family:var(--disp);font-weight:800;font-size:18px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
+.wm .sq{width:10px;height:10px;background:var(--red);border-radius:2px;box-shadow:0 0 12px var(--red)}
+.nav-links{display:flex;gap:28px;font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.nav-links a:hover{color:var(--fg)}
+.navbtn{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:9px 16px;color:var(--fg);cursor:pointer;background:rgba(255,255,255,.02);transition:.2s}
+.navbtn:hover{border-color:var(--fg)}
+@media(max-width:860px){.nav-links{display:none}}
+
+/* immersive asymmetric hero */
+.hero{min-height:100svh;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:0 clamp(20px,5vw,56px) clamp(40px,6vw,70px)}
+.hud{position:absolute;top:clamp(90px,12vh,130px);right:clamp(20px,5vw,56px);text-align:right;font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.9}
+.hud .big{font-family:var(--disp);font-weight:800;font-size:clamp(40px,6vw,74px);line-height:.8;letter-spacing:-.04em;color:var(--fg)}
+.hud .big .n{color:var(--cyan)}
+.hud .st{display:inline-flex;align-items:center;gap:8px}
+.hud .st .d{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.hud .st.breach .d{background:var(--red);box-shadow:0 0 10px var(--red)}
+.hud .st.breach{color:var(--red)}
+
+.hero-copy{max-width:min(1340px,100%);margin:0 auto;width:100%}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.eyebrow::before{content:"";width:40px;height:1px;background:var(--red)}
+h1{font-family:var(--disp);font-weight:800;font-size:clamp(48px,10.5vw,150px);line-height:.84;letter-spacing:-.045em;margin:0;text-transform:uppercase}
+h1 .ln{display:block;overflow:hidden}
+h1 .ln span{display:block;transform:translateY(110%)}
+h1 em{font-style:normal;color:var(--red)}
+.herometa{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;margin-top:clamp(26px,4vw,44px);flex-wrap:wrap}
+.sub{font-size:clamp(15px,1.5vw,18px);color:var(--muted);max-width:40ch;line-height:1.6}
+.sub b{color:var(--fg);font-weight:600}
+.actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.fire{font-family:var(--disp);font-weight:700;text-transform:uppercase;font-size:15px;letter-spacing:.01em;background:var(--red);color:#fff;border:none;border-radius:999px;padding:16px 28px;cursor:pointer;display:inline-flex;align-items:center;gap:10px;box-shadow:0 0 0 0 rgba(255,59,48,.5);transition:box-shadow .3s,transform .15s}
+.fire:hover{transform:translateY(-2px);box-shadow:0 0 34px rgba(255,59,48,.5)}
+.fire .pip{width:8px;height:8px;border-radius:50%;background:#fff;animation:pip 1.2s infinite}
+@keyframes pip{50%{opacity:.3}}
+.ghost{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);background:none;border:none;border-bottom:1px solid var(--line);padding:0 0 4px;cursor:pointer;transition:color .2s}
+.ghost:hover{color:var(--fg)}
+.scrollhint{position:absolute;bottom:22px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);animation:bob 2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateX(-50%) translateY(5px)}}
+
+/* breach takeover */
+.btake{position:fixed;inset:0;z-index:40;display:grid;place-items:center;pointer-events:none;opacity:0}
+.btake.on{animation:btin 1.7s ease forwards}
+@keyframes btin{0%{opacity:0}7%{opacity:1}72%{opacity:1}100%{opacity:0}}
+.btake .word{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:clamp(50px,15vw,220px);line-height:.8;letter-spacing:-.05em;color:var(--red);text-align:center}
+.btake.on .word{animation:shk .45s steps(2) 3}
+@keyframes shk{0%,100%{transform:translate(0,0);text-shadow:none}30%{transform:translate(-7px,2px);text-shadow:-6px 0 var(--cyan),6px 0 #fff}70%{transform:translate(7px,-2px);text-shadow:6px 0 var(--cyan),-6px 0 #fff}}
+.btake .sub2{font-family:var(--mono);font-size:clamp(10px,1.3vw,13px);letter-spacing:.22em;text-transform:uppercase;color:#fff;text-align:center;margin-top:16px}
+.fbar{position:fixed;left:0;right:0;height:4px;background:var(--red);z-index:41;opacity:0;box-shadow:0 0 18px var(--red)}
+.fbar.t{top:0}.fbar.b{bottom:0}
+.fbar.on{animation:fb 1.7s ease}
+@keyframes fb{0%,100%{opacity:0}6%,66%{opacity:1}}
+
+/* second section */
+.after{position:relative;z-index:3;background:linear-gradient(180deg,transparent,var(--ink)14%);padding-block:clamp(60px,10vw,130px)}
+.after .k{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--red);margin-bottom:24px}
+.after .big{font-family:var(--disp);font-weight:700;font-size:clamp(28px,5vw,66px);line-height:1.02;letter-spacing:-.03em;max-width:18ch;margin:0}
+.after .big u{text-decoration:none;color:var(--red)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);margin-top:clamp(44px,7vw,84px);border-top:1px solid var(--line)}
+@media(max-width:820px){.steps{grid-template-columns:1fr}}
+.st2{padding:30px clamp(16px,2vw,30px) 30px 0;border-right:1px solid var(--line)}
+.st2:last-child{border-right:none}@media(max-width:820px){.st2{border-right:none;border-bottom:1px solid var(--line)}}
+.st2 .no{font-family:var(--mono);font-size:13px;color:var(--red)}
+.st2 h3{font-family:var(--disp);font-weight:700;font-size:24px;letter-spacing:-.02em;margin:16px 0 10px;text-transform:uppercase}
+.st2 p{color:var(--muted);font-size:15px;margin:0;max-width:34ch;line-height:1.6}
+.reveal{opacity:0;transform:translateY(28px)}
+footer{position:relative;z-index:3;border-top:1px solid var(--line);padding-block:26px 40px}
+.foot-in{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);max-width:1340px;margin:0 auto;padding-inline:clamp(20px,5vw,56px)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}h1 .ln span{transform:none}.reveal{opacity:1;transform:none}}
+</style>
+
+<canvas id="scene"></canvas>
+<div class="reticle" id="reticle"><svg viewBox="0 0 30 30"><circle class="ring" cx="15" cy="15" r="9" fill="none" stroke-width="1.5"/><line x1="15" y1="0" x2="15" y2="6" stroke-width="1.5"/><line x1="15" y1="24" x2="15" y2="30" stroke-width="1.5"/><line x1="0" y1="15" x2="6" y2="15" stroke-width="1.5"/><line x1="24" y1="15" x2="30" y2="15" stroke-width="1.5"/></svg></div>
+<div class="cdot" id="cdot"></div>
+<div class="vig"></div>
+<div class="fbar t" id="fbT"></div><div class="fbar b" id="fbB"></div>
+<div class="btake" id="btake"><div><div class="word">Breach</div><div class="sub2" id="btSub">attack 07 · injection via tool output · guardrail bypassed</div></div></div>
+
+<div class="content">
+<nav><div class="nav-in">
+  <div class="wm"><span class="sq"></span>AutoRedTeam</div>
+  <div class="nav-links"><a href="scan.html">Scan</a><a href="attacks.html">Attacks</a><a href="builder.html">Builder</a></div>
+  <a class="navbtn" href="scan.html">Start free</a>
+</div></nav>
+
+<header class="hero">
+  <div class="hud">
+    <div class="big"><span class="n" id="scoreN">72</span>/100</div>
+    <div style="margin-top:10px">robustness · acme-support-bot</div>
+    <div style="margin-top:14px" class="st" id="statusTag"><span class="d"></span>guardrail holding</div>
+  </div>
+  <div class="hero-copy">
+    <div class="eyebrow">Adversarial testing · for bots you control</div>
+    <h1>
+      <span class="ln"><span>Attack it</span></span>
+      <span class="ln"><span>before <em>they</em></span></span>
+      <span class="ln"><span>do.</span></span>
+    </h1>
+    <div class="herometa">
+      <p class="sub">Real attacks strike your bot's guardrail in real time. Watch them <b>deflect</b> — until one <b>punches through</b>. Then patch it, and run again.</p>
+      <div class="actions">
+        <button class="fire" id="fireBtn"><span class="pip"></span>Fire an attack</button>
+        <a class="ghost" href="scan.html" style="align-self:center">run a real scan →</a>
+      </div>
+    </div>
+  </div>
+  <div class="scrollhint">scroll</div>
+</header>
+
+<section class="after"><div style="max-width:1340px;margin:0 auto;padding-inline:clamp(20px,5vw,56px)">
+  <div class="k reveal">The premise</div>
+  <p class="big reveal">The fastest way to trust your AI is to <u>attack it yourself</u> — first, and on purpose.</p>
+  <div class="steps">
+    <div class="st2 reveal"><div class="no">01</div><h3>Configure</h3><p>Paste your bot's system prompt and rules, plant a harmless canary, and define what staying in bounds means.</p></div>
+    <div class="st2 reveal"><div class="no">02</div><h3>Attack</h3><p>A battery of adversarial vectors strikes it — each a canary-safe probe, never a real harmful payload.</p></div>
+    <div class="st2 reveal"><div class="no">03</div><h3>Report</h3><p>Every breach returns with severity and exact repro steps. Patch the guardrail. Run it again.</p></div>
+  </div>
+</div></section>
+
+<footer><div class="foot-in"><span>AutoRedTeam — adversarial testing for AI</span><span>canary-safe · defensive by design</span><span>v0.1</span></div></footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script>
+var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+
+/* ---------- custom targeting cursor ---------- */
+(function(){
+  if(window.matchMedia&&window.matchMedia('(pointer:coarse)').matches) return;
+  document.documentElement.classList.add('cc');
+  var ret=document.getElementById('reticle'), dot=document.getElementById('cdot');
+  var rx=0,ry=0,tx=0,ty=0,shown=false;
+  addEventListener('mousemove',function(e){
+    tx=e.clientX; ty=e.clientY;
+    dot.style.transform='translate('+(tx-2)+'px,'+(ty-2)+'px)';
+    if(!shown){ ret.classList.add('show'); dot.classList.add('show'); shown=true; }
+    var hot=!!(e.target.closest&&e.target.closest('a,button,[data-cur]'));
+    ret.classList.toggle('hot',hot); dot.classList.toggle('hot',hot);
+  });
+  addEventListener('mouseleave',function(){ ret.classList.remove('show'); dot.classList.remove('show'); shown=false; });
+  (function raf(){ rx+=(tx-rx)*0.22; ry+=(ty-ry)*0.22; ret.style.transform='translate('+(rx-15)+'px,'+(ry-15)+'px)'; requestAnimationFrame(raf); })();
+})();
+
+/* ---------- WebGL scene: core + shield + attacks ---------- */
+var R=null,scene,camera,group,core,coreHalo,shieldA,shieldB,ring,shock,SHIELD=3.0,attacks=[],breachActive=false,coreBaseEmissive;
+function initScene(){
+  var canvas=document.getElementById('scene');
+  if(!window.THREE){ document.getElementById('scene').style.display='none'; return; }
+  R=new THREE.WebGLRenderer({canvas:canvas,antialias:true,alpha:true});
+  R.setPixelRatio(Math.min(devicePixelRatio,2));
+  scene=new THREE.Scene(); scene.fog=new THREE.FogExp2(0x06080c,0.03);
+  camera=new THREE.PerspectiveCamera(50,1,0.1,100); camera.position.set(0,0,13);
+  group=new THREE.Group(); scene.add(group);
+
+  scene.add(new THREE.AmbientLight(0x1a2634,0.7));
+  var l1=new THREE.PointLight(0x30e0ff,1.3,60); l1.position.set(6,5,9); scene.add(l1);
+  var l2=new THREE.PointLight(0xff3b30,0.9,60); l2.position.set(-7,-4,5); scene.add(l2);
+
+  // core
+  var cmat=new THREE.MeshStandardMaterial({color:0x0a141f,emissive:0x30e0ff,emissiveIntensity:1.1,metalness:.4,roughness:.25,flatShading:true});
+  core=new THREE.Mesh(new THREE.IcosahedronGeometry(1.15,1),cmat); group.add(core); coreBaseEmissive=new THREE.Color(0x30e0ff);
+  coreHalo=new THREE.Mesh(new THREE.SphereGeometry(1.7,24,24),new THREE.MeshBasicMaterial({color:0x30e0ff,transparent:true,opacity:0.1,blending:THREE.AdditiveBlending,depthWrite:false})); group.add(coreHalo);
+
+  // shields
+  shieldA=new THREE.Mesh(new THREE.IcosahedronGeometry(SHIELD,1),new THREE.MeshBasicMaterial({color:0x30e0ff,wireframe:true,transparent:true,opacity:.34})); group.add(shieldA);
+  shieldB=new THREE.Mesh(new THREE.IcosahedronGeometry(SHIELD+0.5,2),new THREE.MeshBasicMaterial({color:0x1b86a8,wireframe:true,transparent:true,opacity:.14})); group.add(shieldB);
+  ring=new THREE.Mesh(new THREE.TorusGeometry(SHIELD+1.3,0.015,8,90),new THREE.MeshBasicMaterial({color:0x30e0ff,transparent:true,opacity:.3})); ring.rotation.x=1.2; group.add(ring);
+  shock=new THREE.Mesh(new THREE.TorusGeometry(SHIELD,0.06,10,60),new THREE.MeshBasicMaterial({color:0xff3b30,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false})); group.add(shock);
+
+  // starfield
+  var sg=new THREE.BufferGeometry(),N=420,pos=new Float32Array(N*3);
+  for(var i=0;i<N;i++){var r=14+Math.random()*26,t=Math.random()*6.28,p=Math.acos(2*Math.random()-1);pos[i*3]=r*Math.sin(p)*Math.cos(t);pos[i*3+1]=r*Math.sin(p)*Math.sin(t);pos[i*3+2]=r*Math.cos(p);}
+  sg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(sg,new THREE.PointsMaterial({color:0x4a5a6e,size:0.05,transparent:true,opacity:.6})));
+
+  // attack pool
+  var ageo=new THREE.CylinderGeometry(0.015,0.12,0.9,6);
+  for(var k=0;k<30;k++){
+    var m=new THREE.Mesh(ageo,new THREE.MeshBasicMaterial({color:0xff5a4d,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+    m.visible=false; group.add(m); attacks.push({mesh:m,active:false});
+  }
+  resize(); addEventListener('resize',resize);
+  requestAnimationFrame(loop);
+  // steady ambient attacks
+  if(!reduce) setInterval(function(){ if(Math.random()<0.7) spawnAttack(false); }, 650);
+}
+function resize(){ var w=innerWidth,h=innerHeight; R.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+
+function spawnAttack(breach){
+  var slot=null; for(var i=0;i<attacks.length;i++){ if(!attacks[i].active){slot=attacks[i];break;} }
+  if(!slot) return;
+  var r=10+Math.random()*3, t=Math.random()*6.28, p=Math.acos(2*Math.random()-1);
+  var start=new THREE.Vector3(r*Math.sin(p)*Math.cos(t),r*Math.sin(p)*Math.sin(t),r*Math.cos(p)*0.5);
+  slot.active=true; slot.breach=breach; slot.dying=false; slot.life=1;
+  slot.mesh.position.copy(start); slot.mesh.visible=true; slot.mesh.material.opacity=0.95;
+  slot.mesh.material.color.setHex(breach?0xff3b30:0xff5a4d);
+  slot.dir=start.clone().multiplyScalar(-1).normalize();
+  slot.speed=breach?0.26:(0.14+Math.random()*0.06);
+  slot.mesh.scale.set(1,1,1);
+}
+function orient(m,dir){ m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir.clone().multiplyScalar(-1).normalize()); }
+
+var defl=[]; // deflection flashes
+function deflect(pos){
+  var f=new THREE.Mesh(new THREE.SphereGeometry(0.16,10,10),new THREE.MeshBasicMaterial({color:0x30e0ff,transparent:true,opacity:.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+  f.position.copy(pos); group.add(f); defl.push({mesh:f,life:1});
+}
+function breachFlare(slot){
+  breachActive=true;
+  core.material.emissive.setHex(0xff3b30); core.material.emissiveIntensity=2.4;
+  coreHalo.material.color.setHex(0xff3b30); coreHalo.material.opacity=0.3;
+  shock.material.opacity=0.9; shock.scale.set(1,1,1);
+  // UI takeover
+  var bt=document.getElementById('btake'),fbT=document.getElementById('fbT'),fbB=document.getElementById('fbB');
+  [bt,fbT,fbB].forEach(function(el){el.classList.remove('on');void el.offsetWidth;el.classList.add('on');});
+  var stag=document.getElementById('statusTag'); stag.classList.add('breach'); stag.innerHTML='<span class="d"></span>guardrail BREACHED';
+  var sc=document.getElementById('scoreN'); sc.textContent='72'; sc.style.color='var(--red)';
+  setTimeout(function(){
+    core.material.emissive.copy(coreBaseEmissive); core.material.emissiveIntensity=1.1;
+    coreHalo.material.color.setHex(0x30e0ff); coreHalo.material.opacity=0.1;
+    stag.classList.remove('breach'); stag.innerHTML='<span class="d"></span>guardrail holding'; sc.style.color='';
+    breachActive=false;
+  },2000);
+}
+
+var mx=0,my=0,tx=0,ty=0;
+addEventListener('mousemove',function(e){ tx=(e.clientX/innerWidth-0.5); ty=(e.clientY/innerHeight-0.5); });
+function loop(t){
+  requestAnimationFrame(loop); if(!R) return;
+  var dt=t*0.001;
+  mx+=(tx-mx)*0.05; my+=(ty-my)*0.05;
+  group.rotation.y = dt*0.08 + mx*0.6;
+  group.rotation.x = Math.sin(dt*0.3)*0.1 + my*0.4;
+  shieldA.rotation.y-=0.004; shieldA.rotation.x+=0.002; shieldB.rotation.y+=0.003; ring.rotation.z+=0.004;
+  core.rotation.y+=0.01; core.rotation.x+=0.006;
+  coreHalo.material.opacity=(breachActive?0.3:0.1)+Math.sin(dt*3)*0.03;
+  if(shock.material.opacity>0.01){ shock.scale.multiplyScalar(1.06); shock.material.opacity*=0.92; }
+  // attacks
+  attacks.forEach(function(a){ if(!a.active)return;
+    a.mesh.position.addScaledVector(a.dir,a.speed); orient(a.mesh,a.dir);
+    var d=a.mesh.position.length();
+    if(!a.breach && d<=SHIELD){ deflect(a.mesh.position.clone()); a.active=false; a.mesh.visible=false; }
+    else if(a.breach && d<=1.3){ a.active=false; a.mesh.visible=false; breachFlare(a); }
+    else if(d<0.4){ a.active=false; a.mesh.visible=false; }
+  });
+  // deflection flashes
+  for(var i=defl.length-1;i>=0;i--){ var f=defl[i]; f.life-=0.08; f.mesh.scale.multiplyScalar(1.12); f.mesh.material.opacity=f.life*.9; if(f.life<=0){ group.remove(f.mesh); defl.splice(i,1); } }
+  R.render(scene,camera);
+}
+
+/* run a dramatic breach */
+var busy=false;
+function runBreach(){
+  if(busy)return; busy=true;
+  // flurry of deflected attacks, then the breach
+  var n=0,iv=setInterval(function(){ spawnAttack(false); if(++n>=5)clearInterval(iv); },180);
+  setTimeout(function(){ spawnAttack(true); }, 1100);
+  setTimeout(function(){ busy=false; }, 3600);
+}
+document.getElementById('fireBtn').addEventListener('click',function(){ spawnAttack(Math.random()<0.5); });
+var _gb=document.getElementById('ghostBtn'); if(_gb) _gb.addEventListener('click',runBreach);
+
+/* type entrance + reveals */
+if(window.gsap&&!reduce){
+  gsap.to('h1 .ln span',{y:'0%',duration:1.1,ease:'power4.out',stagger:.12,delay:.2});
+  gsap.registerPlugin(ScrollTrigger);
+  gsap.utils.toArray('.reveal').forEach(function(el){ gsap.to(el,{opacity:1,y:0,duration:.9,ease:'power3.out',scrollTrigger:{trigger:el,start:'top 86%'}}); });
+} else { document.querySelectorAll('h1 .ln span').forEach(function(s){s.style.transform='none';}); }
+
+initScene();
+setTimeout(runBreach, 2600);
+</script>
