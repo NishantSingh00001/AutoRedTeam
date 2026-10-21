@@ -3,12 +3,23 @@
 
 const MODELS = ["gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"];
 
+// --- per-IP burst guard (added by security hardening) ---
+const __rlBuckets = (globalThis.__rlBuckets = globalThis.__rlBuckets || new Map());
+function __rateLimited(req, res, limit = 20, windowMs = 600000) {
+  const ip = ((req.headers && req.headers["x-forwarded-for"]) || "").split(",")[0].trim() || "unknown";
+  const now = Date.now();
+  const hits = (__rlBuckets.get(ip) || []).filter((t) => now - t < windowMs);
+  if (hits.length >= limit) { res.status(429).json({ error: "Too many requests from this network. Please wait a minute and try again." }); return true; }
+  hits.push(now); __rlBuckets.set(ip, hits); return false;
+}
+
 export default async function handler(req, res){
-  res.setHeader("Access-Control-Allow-Origin","*");
+  res.setHeader("Access-Control-Allow-Origin", process.env.ALLOWED_ORIGIN || "*");
   res.setHeader("Access-Control-Allow-Methods","POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers","Content-Type");
   if(req.method==="OPTIONS") return res.status(200).end();
   if(req.method!=="POST") return res.status(405).json({error:"Use POST."});
+  if (__rateLimited(req, res)) return;
 
   const key = process.env.GEMINI_API_KEY;
   if(!key) return res.status(500).json({error:"GEMINI_API_KEY is not set. Add it in Vercel → Settings → Environment Variables, then redeploy."});
