@@ -1,0 +1,8 @@
+
+# --- secrets (added by security hardening) ---
+.env
+.env.*
+!.env.example
+*.local
+.vercel
+.netlify
